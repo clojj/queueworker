@@ -1,6 +1,8 @@
 package queueworker.ejb;
 
+import queueworker.common.QueueObject;
 import queueworker.common.TopicEvent;
+import queueworker.common.Topics;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -8,6 +10,7 @@ import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -15,20 +18,20 @@ import java.util.logging.Logger;
 @Startup
 public class Worker {
     
-    private static final int INITIAL_MINUTES = 2;
+    private static final int INITIAL_MINUTES = 1;
     
     private Logger LOGGER = Logger.getLogger("Worker");
     
     @Resource(lookup = "java:jboss/ee/concurrency/executor/queueworkerExecutorService")
     private ManagedExecutorService managedExecutorService;
     
-    private DelayQueue<TopicEvent> topicDelayQueue = new DelayQueue<>();
+    private DelayQueue<QueueObject> topicDelayQueue = new DelayQueue<>();
     
     @PostConstruct
     private void init() {
         
         // send initial TopicEvent
-        boolean initialOffer = topicDelayQueue.offer(new TopicEvent(INITIAL_MINUTES * 60 * 1000));
+        boolean initialOffer = topicDelayQueue.offer(new QueueObject(INITIAL_MINUTES * 60 * 1000, new TopicEvent(Topics.TOPIC_A, new AtomicLong(0))));
         if (initialOffer) {
             LOGGER.log(Level.INFO, "Triggering initial event in " + INITIAL_MINUTES + " minutes");
         }
@@ -36,8 +39,8 @@ public class Worker {
         managedExecutorService.execute(() -> {
             try {
                 while (true) {
-                    TopicEvent topicEvent = topicDelayQueue.take();
-                    LOGGER.info("PROCESSING " + topicEvent.toString());
+                    QueueObject queueObject = topicDelayQueue.take();
+                    LOGGER.info("PROCESSING " + queueObject.toString());
                 }
             } catch (InterruptedException e) {
                 LOGGER.log(Level.SEVERE, "Interrupted: " + e.getMessage());
@@ -47,17 +50,17 @@ public class Worker {
     }
     
     public boolean addEvent() {
-        return topicDelayQueue.offer(new TopicEvent(8000));
+        return topicDelayQueue.offer(new QueueObject(8000, new TopicEvent(Topics.TOPIC_A, new AtomicLong(0))));
     }
 
     public long addEventDebounced() {
-        TopicEvent topicEvent = topicDelayQueue.peek();
-        if (topicEvent != null) {
-            return topicEvent.inc();
+        QueueObject queueObject = topicDelayQueue.peek();
+        if (queueObject != null) {
+            return queueObject.inc();
         } else {
-            topicEvent = new TopicEvent(8000);
-            if (topicDelayQueue.offer(topicEvent)) {
-                LOGGER.info("Start new event " + topicEvent.toString());
+            queueObject = new QueueObject(8000, new TopicEvent(Topics.TOPIC_A, new AtomicLong(0)));
+            if (topicDelayQueue.offer(queueObject)) {
+                LOGGER.info("Start new event " + queueObject.toString());
                 return 0L;
             }
         }

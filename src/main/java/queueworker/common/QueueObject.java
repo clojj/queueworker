@@ -1,12 +1,13 @@
 package queueworker.common;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class TopicEvent implements Delayed {
+public class QueueObject implements Delayed {
     
     private Logger LOGGER = Logger.getLogger("TopicEvent");
     
@@ -15,28 +16,29 @@ public class TopicEvent implements Delayed {
     private Long start;
     private final long interval;
     
-    private AtomicLong counter = new AtomicLong(0);
+    // Kotlin Data Class
+    private TopicEvent topicEvent;
     
-    
-    public TopicEvent(long interval) {
+    public QueueObject(long interval, TopicEvent topicEvent) {
         this.interval = interval;
+        this.topicEvent = topicEvent;
     }
     
     public long inc() {
-        long count = counter.incrementAndGet();
+        long count = topicEvent.getCount().incrementAndGet();
         LOGGER.log(Level.INFO, "inced " + this.toString());
         return count;
     }
 
     @Override
-    public long getDelay(TimeUnit unit) {
+    public long getDelay(@NotNull TimeUnit unit) {
         return unit.convert(startTime() - System.currentTimeMillis(), TIME_UNIT);
     }
     
     @Override
-    public int compareTo(Delayed delayed) {
-        TopicEvent otherTopicEvent = (TopicEvent) delayed;
-        return startTime().compareTo(otherTopicEvent.startTime());
+    public int compareTo(@NotNull Delayed delayed) {
+        QueueObject otherQueueObject = (QueueObject) delayed;
+        return startTime().compareTo(otherQueueObject.startTime());
     }
     
     private Long startTime() {
@@ -48,10 +50,10 @@ public class TopicEvent implements Delayed {
     
     @Override
     public String toString() {
-        return "TopicEvent{" +
+        return "QueueObject{" +
                 "start=" + start +
                 ", interval=" + interval +
-                ", counter=" + counter +
+                ", topicEvent=" + topicEvent +
                 '}';
     }
 }
