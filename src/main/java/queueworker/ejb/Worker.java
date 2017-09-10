@@ -55,7 +55,9 @@ public class Worker {
         if (topicEvent != null) {
             return topicEvent.inc();
         } else {
-            if (topicDelayQueue.offer(new TopicEvent(8000))) {
+            topicEvent = new TopicEvent(8000);
+            if (topicDelayQueue.offer(topicEvent)) {
+                LOGGER.info("Start new event " + topicEvent.toString());
                 return 0L;
             }
         }
